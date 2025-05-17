@@ -3,7 +3,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/AWS-Lambda-orange?logo=amazon-aws&style=for-the-badge"/>
   <img src="https://img.shields.io/badge/Cost‑Optimization-%F0%9F%92%B2-success?style=for-the-badge"/>
-  <img src="https://img.shields.io/github/license/Saadp001/ebs-snapshot-cleanup?style=for-the-badge"/>
+  <img src="https://img.shields.io/github/license/Saadp001/aws-cost-optimizer?style=for-the-badge"/>
 </p>
 
 **Serverless solution** that **scans and deletes stale EBS snapshots** (no longer attached to any active EC2 volumes), automatically reducing storage costs.  
