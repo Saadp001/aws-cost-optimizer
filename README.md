@@ -1,70 +1,54 @@
-# aws-cost-optimizer
-🧹 AWS Lambda – EBS Snapshot Cleanup for Cloud Cost Optimization
+<h1 align="center">🧹 AWS Lambda – EBS Snapshot Cleanup</h1>
 
-This project is a serverless solution using AWS Lambda to identify and automatically delete stale EBS snapshots (those no longer attached to active volumes or EC2 instances), helping you reduce unnecessary cloud storage costs.
+<p align="center">
+  <img src="https://img.shields.io/badge/AWS-Lambda-orange?logo=amazon-aws&style=for-the-badge"/>
+  <img src="https://img.shields.io/badge/Cost‑Optimization-%F0%9F%92%B2-success?style=for-the-badge"/>
+  <img src="https://img.shields.io/github/license/Saadp001/ebs-snapshot-cleanup?style=for-the-badge"/>
+</p>
 
-💡 This approach can be extended to other AWS resources like unused Elastic IPs, old Lambda versions, orphaned EBS volumes, etc.
+**Serverless solution** that **scans and deletes stale EBS snapshots** (no longer attached to any active EC2 volumes), automatically reducing storage costs.  
+> 💡 Easily extendable to other unused resources—Elastic IPs, orphaned EBS volumes, old Lambda versions, etc.
 
-✅ Features
+---
 
-🔍 Scans all snapshots owned by your account
+## ✨ Features
+- 🔍 Scans **all snapshots** in the account  
+- 🧠 Verifies associated volume or instance status  
+- 🗑️ Deletes snapshots that are no longer needed *(optional **DRY‑RUN** mode)*  
+- 📬 Sends **real‑time SNS notifications** (email / Slack)  
+- ⏰ Runs on a **CloudWatch Events (EventBridge)** schedule
 
-🧠 Checks whether the associated volume/instance is active
+---
 
-🗑️ Deletes stale or unused snapshots
+## 🛠️ Tech Stack
+| Service | Purpose |
+|---------|---------|
+| **AWS Lambda (Python 3.9+)** | Core cleanup logic |
+| **Amazon EC2 / EBS** | Resources being optimized |
+| **Amazon SNS** | Notifications |
+| **Amazon CloudWatch** | Scheduling & logging |
+| **IAM** | Least‑privilege permissions |
 
-📬 Sends real-time notifications via SNS
+---
 
-⏰ Triggered on schedule using CloudWatch Events
+## 🚀 Quick Start
 
-🛠️ Technologies Used
+### 1. Deploy Lambda
+1. Create a new Lambda function.  
+2. Copy `lambda/lambda_function.py` (this repo) into the code editor.  
+3. Runtime ➜ **Python 3.9** (or newer).
 
-AWS Lambda (Python)
+### 2. Set Environment Variables
 
-Amazon EC2
+| Key               | Example Value                                          | Notes                                   |
+|-------------------|--------------------------------------------------------|-----------------------------------------|
+| `SNS_TOPIC_ARN`   | `arn:aws:sns:eu‑north‑1:123456789012:ebs‑cleanup`      | **Required** – your SNS topic ARN       |
+| `DRY_RUN`         | `true` / `false`                                       | `true` → log only, no deletions         |
+| `PROTECT_TAG_KEY` | `KeepSnapshot`                                         | Optional. Snapshots with this tag key are skipped |
 
-Amazon SNS
+### 3. Attach IAM Role
 
-Amazon CloudWatch
-
-IAM Roles & Policies
-
-
-
-🚀 Setup Guide
-
-1. Deploy Lambda Function
-
-Create a Lambda function in the AWS console using lambda_function.py
-
-Set the runtime to Python 3.9+
-
-
-
-2. Set Environment Variables
-
-Variable
-
-Description
-
-SNS_TOPIC_ARN
-
-ARN of the SNS topic for notifications
-
-DRY_RUN
-
-Set to true for testing, false to actually delete
-
-PROTECT_TAG_KEY
-
-(Optional) Snapshots with this tag key will be skipped
-
-
-
-
-3. IAM Role Permissions
-
-Attach a role with the following permissions:
+```json
 {
   "Effect": "Allow",
   "Action": [
@@ -76,48 +60,3 @@ Attach a role with the following permissions:
   ],
   "Resource": "*"
 }
-
-✅ Least privilege is recommended for production.
-
-
-
-4. Configure SNS
-Create an SNS topic
-
-Subscribe your email or Slack webhook to get notifications
-
-Pass the SNS Topic ARN as an environment variable
-
-
-
-5. Setup CloudWatch Schedule
-Go to CloudWatch → Rules → Create Rule
-
-Choose EventBridge (Scheduler) → cron schedule (e.g. rate(1 day))
-
-Target: Your Lambda function
-
-
-
-🧪 Testing
-Set DRY_RUN=true to log deletions without actually deleting
-
-Check logs in CloudWatch Logs
-
-Confirm notifications from SNS
-
-
-✅ Key Notes:
-DRY_RUN: Set environment variable DRY_RUN = false to enable actual deletion.
-
-SNS_TOPIC_ARN: Provide this as an environment variable to receive email/Slack alerts.
-
-PROTECT_TAG_KEY: You can tag snapshots with this key (e.g. KeepSnapshot) to skip deletion.
-
-
-
-💻 Author
-Saad — DevOps & Cloud Enthusiast
-
-Linkedin https://www.linkedin.com/in/saad-patel-469016314/ 
-GitHub https://github.com/Saadp001
