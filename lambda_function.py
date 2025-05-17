@@ -1,77 +1,89 @@
+import os
 import boto3
-import json
+from botocore.exceptions import ClientError
 
-# Initialize AWS clients
-ec2 = boto3.client('ec2')
-sns = boto3.client('sns')
+REGION = os.getenv("AWS_REGION", "us-east-1")
+DRY_RUN = os.getenv("DRY_RUN", "true").lower() == "true"
+TAG_KEY = os.getenv("PROTECT_TAG_KEY", "KeepSnapshot")
+SNS_TOPIC_ARN = os.getenv("SNS_TOPIC_ARN")
 
-# Replace with your actual SNS topic ARN
-SNS_TOPIC_ARN = 'arn:aws:sns:<your-region>:<your-account-id>:ebs-cleanup-alerts'
+ec2 = boto3.client("ec2", region_name=REGION)
+sns = boto3.client("sns", region_name=REGION)
 
-def notify(message):
-    sns.publish(
-        TopicArn=SNS_TOPIC_ARN,
-        Subject='EBS Snapshot Cleanup Notification',
-        Message=message
-    )
+def send_notification(message):
+    if SNS_TOPIC_ARN:
+        try:
+            sns.publish(
+                TopicArn=SNS_TOPIC_ARN,
+                Subject="EBS Snapshot Cleanup Report",
+                Message=message
+            )
+        except ClientError as e:
+            print(f"Failed to send SNS notification: {e}")
 
 def lambda_handler(event, context):
-    deleted_snapshots = []
-    skipped_snapshots = []
+    report = []
 
     try:
-        # Get all EBS snapshots owned by this account
-        snapshots_response = ec2.describe_snapshots(OwnerIds=['self'])
+        snapshots = ec2.describe_snapshots(OwnerIds=["self"])["Snapshots"]
+        print(f"Found {len(snapshots)} snapshots")
 
-        # Get all running EC2 instance IDs
-        instances_response = ec2.describe_instances(
-            Filters=[{'Name': 'instance-state-name', 'Values': ['running']}]
+        # Get all instance IDs that are currently running or stopped
+        instance_data = ec2.describe_instances(
+            Filters=[{"Name": "instance-state-name", "Values": ["running", "stopped"]}]
         )
-        active_instance_ids = {
-            instance['InstanceId']
-            for reservation in instances_response['Reservations']
-            for instance in reservation['Instances']
-        }
+        attached_volume_ids = set()
+        for reservation in instance_data["Reservations"]:
+            for instance in reservation["Instances"]:
+                for mapping in instance.get("BlockDeviceMappings", []):
+                    volume_id = mapping["Ebs"]["VolumeId"]
+                    attached_volume_ids.add(volume_id)
 
-        for snapshot in snapshots_response['Snapshots']:
-            snapshot_id = snapshot['SnapshotId']
-            volume_id = snapshot.get('VolumeId')
+        for snapshot in snapshots:
+            snapshot_id = snapshot["SnapshotId"]
+            snapshot_tags = {tag["Key"]: tag["Value"] for tag in snapshot.get("Tags", [])}
+
+            if TAG_KEY in snapshot_tags:
+                continue  # Skip protected snapshots
+
+            volume_id = snapshot.get("VolumeId")
+
+            should_delete = False
+            reason = ""
 
             if not volume_id:
-                # No volume associated — safe to delete
-                ec2.delete_snapshot(SnapshotId=snapshot_id)
-                deleted_snapshots.append(snapshot_id)
-            else:
+                should_delete = True
+                reason = "Not associated with any volume"
+            elif volume_id not in attached_volume_ids:
                 try:
-                    volume_response = ec2.describe_volumes(VolumeIds=[volume_id])
-                    attachments = volume_response['Volumes'][0].get('Attachments', [])
-                    if not attachments:
-                        ec2.delete_snapshot(SnapshotId=snapshot_id)
-                        deleted_snapshots.append(snapshot_id)
-                    else:
-                        skipped_snapshots.append(snapshot_id)
-                except ec2.exceptions.ClientError as e:
-                    if e.response['Error']['Code'] == 'InvalidVolume.NotFound':
-                        ec2.delete_snapshot(SnapshotId=snapshot_id)
-                        deleted_snapshots.append(snapshot_id)
-                    else:
-                        skipped_snapshots.append(snapshot_id)
+                    volume_info = ec2.describe_volumes(VolumeIds=[volume_id])
+                    if not volume_info["Volumes"][0]["Attachments"]:
+                        should_delete = True
+                        reason = "Volume is detached"
+                except ClientError as e:
+                    if e.response["Error"]["Code"] == "InvalidVolume.NotFound":
+                        should_delete = True
+                        reason = "Volume no longer exists"
 
-        message = f"""
-EBS Snapshot Cleanup Report
-
-✅ Deleted Snapshots:
-{json.dumps(deleted_snapshots, indent=2)}
-
-⏭️ Skipped Snapshots:
-{json.dumps(skipped_snapshots, indent=2)}
-        """
-
-        print(message)
-        notify(message.strip())
+            if should_delete:
+                if DRY_RUN:
+                    report.append(f"[DRY RUN] Would delete snapshot {snapshot_id} – {reason}")
+                else:
+                    ec2.delete_snapshot(SnapshotId=snapshot_id)
+                    report.append(f"Deleted snapshot {snapshot_id} – {reason}")
+            else:
+                print(f"Retaining snapshot {snapshot_id}")
 
     except Exception as e:
-        error_message = f"❌ Lambda function failed: {str(e)}"
+        error_message = f"Error during snapshot cleanup: {str(e)}"
         print(error_message)
-        notify(error_message)
+        send_notification(error_message)
+        raise
 
+    if report:
+        summary = "\n".join(report)
+    else:
+        summary = "No stale EBS snapshots found."
+
+    print(summary)
+    send_notification(summary)
