@@ -61,19 +61,3 @@
   "Resource": "*"
 }
 
-
-┌──────────────┐       (scheduled)        ┌─────────────┐
-│ CloudWatch   │ ───────────────────────▶ │   Lambda    │
-│   Events     │                         │  Function   │
-└──────────────┘                         └────┬────────┘
-                                               │
-                                  Deletes      ▼
-                                 ┌──────────────┐
-                                 │  EBS Snapshots│
-                                 └────┬─────────┘
-                                      │
-                               Sends Alert via SNS
-                                      ▼
-                            ┌────────────────────┐
-                            │  SNS Topic (Email/Slack) │
-                            └────────────────────┘
