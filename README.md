@@ -29,6 +29,8 @@ Amazon CloudWatch
 
 IAM Roles & Policies
 
+
+
 🚀 Setup Guide
 
 1. Deploy Lambda Function
@@ -36,6 +38,8 @@ IAM Roles & Policies
 Create a Lambda function in the AWS console using lambda_function.py
 
 Set the runtime to Python 3.9+
+
+
 
 2. Set Environment Variables
 
@@ -55,6 +59,9 @@ PROTECT_TAG_KEY
 
 (Optional) Snapshots with this tag key will be skipped
 
+
+
+
 3. IAM Role Permissions
 
 Attach a role with the following permissions:
@@ -71,6 +78,7 @@ Attach a role with the following permissions:
 }
 
 ✅ Least privilege is recommended for production.
+
 
 
 4. Configure SNS
@@ -99,8 +107,17 @@ Check logs in CloudWatch Logs
 Confirm notifications from SNS
 
 
+✅ Key Notes:
+DRY_RUN: Set environment variable DRY_RUN = false to enable actual deletion.
+
+SNS_TOPIC_ARN: Provide this as an environment variable to receive email/Slack alerts.
+
+PROTECT_TAG_KEY: You can tag snapshots with this key (e.g. KeepSnapshot) to skip deletion.
+
 
 
 💻 Author
 Saad — DevOps & Cloud Enthusiast
-Linkedin https://www.linkedin.com/in/saad-patel-469016314/ | GitHub https://github.com/Saadp001
+
+Linkedin https://www.linkedin.com/in/saad-patel-469016314/ 
+GitHub https://github.com/Saadp001
