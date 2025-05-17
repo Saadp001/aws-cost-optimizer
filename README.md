@@ -60,3 +60,35 @@
   ],
   "Resource": "*"
 }
+
+4. Configure SNS
+Create a Standard topic → subscribe your email / Slack webhook.
+
+Paste the Topic ARN into SNS_TOPIC_ARN env var.
+
+5. Schedule with CloudWatch
+CloudWatch → Rules → Create rule
+
+Event source ➜ Schedule (e.g., cron(0 1 * * ? *) – daily 01:00 UTC)
+
+Target ➜ your Lambda function.
+
+6. Test
+# In Lambda console
+Test event → {}
+# Or invoke via AWS CLI
+aws lambda invoke --function-name ebs-snapshot-cleanup out.json
+Keep DRY_RUN=true until logs & emails look correct.
+Switch to false to start deleting.
+
+
+
+┌───────────┐     cron/event   ┌────────────┐     deletes    ┌─────────────┐
+│CloudWatch │ ───────────────▶ │   Lambda   │ ─────────────▶ │  EBS Snaps  │
+│ (Rule)    │                  │  Cleanup   │                │ (Orphaned)  │
+└───────────┘                  └─────┬──────┘                └────┬────────┘
+                              publishes SNS                       │
+                               alerts ▼                           │
+                           ┌──────────────┐                       │
+                           │   SNS Topic  │◀──────────────────────┘
+                           └──────────────┘
